@@ -132,10 +132,11 @@ export async function listBackups(
     if (!d.isDirectory()) continue
     const bPath = path.join(ws.path, d.name)
     const dataDir = path.join(bPath, game.dataDirName)
-    const valid = await pathExists(dataDir)
+    const hasData = await pathExists(dataDir)
+    const hasRegistry = await pathExists(path.join(bPath, game.regFileName))
     const meta = await readMeta(bPath)
     const st = await fs.stat(bPath)
-    const stats = valid ? await walkStats(dataDir) : { count: 0, size: 0 }
+    const stats = hasData ? await walkStats(dataDir) : { count: 0, size: 0 }
     backups.push({
       name: d.name,
       path: bPath,
@@ -143,10 +144,11 @@ export async function listBackups(
       createdAt: meta.createdAt ?? (st.birthtimeMs || st.mtimeMs),
       fileCount: stats.count,
       totalSize: stats.size,
-      hasRegistry: await pathExists(path.join(bPath, game.regFileName)),
+      hasRegistry,
+      hasData,
       isSnapshot: d.name.startsWith(SNAPSHOT_PREFIX),
       note: meta.note ?? '',
-      valid
+      valid: hasData && hasRegistry
     })
   }
   backups.sort((a, b) => b.createdAt - a.createdAt)
@@ -235,6 +237,9 @@ export async function restoreBackup(
   if (!(await pathExists(dataSrc))) {
     throw new Error('该备份缺少存档数据目录，无法恢复')
   }
+  if (!(await pathExists(path.join(bPath, game.regFileName)))) {
+    throw new Error('该备份缺少注册表文件，已损坏，无法恢复')
+  }
 
   // 恢复前先为当前存档创建安全快照
   let snapshotName: string | null = null
@@ -258,11 +263,8 @@ export async function restoreBackup(
     }
   })
 
-  let registry: RestoreResult['registry'] = 'missing'
   const regFile = path.join(bPath, game.regFileName)
-  if (await pathExists(regFile)) {
-    registry = (await importRegistry(regFile)) ? 'ok' : 'failed'
-  }
+  const registry: RestoreResult['registry'] = (await importRegistry(regFile)) ? 'ok' : 'failed'
 
   progress({ phase: 'done', done: count, total: count, label: '完成' })
   return { snapshotName, registry }

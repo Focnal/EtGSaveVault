@@ -72,8 +72,8 @@ const game = computed(() => state.config?.game ?? null)
         <Camera v-if="b.isSnapshot" :size="14" class="dim-icon" />
         <Archive v-else :size="14" class="accent-icon" />
         <span class="bk-name" :title="b.note || b.name">{{ b.name }}</span>
-        <span v-if="b.hasRegistry" class="badge">注册表</span>
-        <span v-if="!b.valid" class="badge badge-warn">数据缺失</span>
+        <span v-if="!b.hasData" class="badge badge-warn">数据缺失</span>
+        <span v-if="!b.hasRegistry" class="badge badge-warn">注册表缺失</span>
         <span class="bk-meta">{{ formatTime(b.createdAt) }}</span>
         <span class="bk-meta">{{ b.fileCount }} 个文件</span>
         <span class="bk-meta">{{ formatSize(b.totalSize) }}</span>

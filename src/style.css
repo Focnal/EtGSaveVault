@@ -621,6 +621,19 @@ code {
   align-items: flex-start;
 }
 
+.damage-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(240, 178, 74, 0.1);
+  border: 1px solid rgba(240, 178, 74, 0.35);
+  color: var(--amber);
+  line-height: 1.5;
+}
+
 .note-editor textarea {
   flex: 1;
 }

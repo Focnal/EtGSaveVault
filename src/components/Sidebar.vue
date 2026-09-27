@@ -102,6 +102,7 @@ function toggle(id: string): void {
             <Camera v-if="b.isSnapshot" :size="13" class="row-icon dim-icon" />
             <Archive v-else :size="13" class="row-icon" />
             <span class="row-label" :title="b.note ? `${b.name} — ${b.note}` : b.name">{{ b.name }}</span>
+            <AlertTriangle v-if="!b.valid" :size="11" class="warn-icon" />
             <span class="row-date">{{ formatTime(b.createdAt).slice(5) }}</span>
           </div>
           <div v-if="!missingOf(ws.id) && backupsOf(ws.id).length === 0" class="tree-hint">暂无备份</div>

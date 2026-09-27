@@ -30,9 +30,11 @@ export interface BackupSummary {
   fileCount: number
   totalSize: number
   hasRegistry: boolean
+  /** 是否包含存档数据目录 */
+  hasData: boolean
   isSnapshot: boolean
   note: string
-  /** 是否包含有效的存档数据目录 */
+  /** 存档数据目录与注册表文件齐全，缺一不可，否则视为损坏 */
   valid: boolean
 }
 
