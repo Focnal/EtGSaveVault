@@ -1,0 +1,113 @@
+<script setup lang="ts">
+import { computed } from 'vue'
+import {
+  AlertTriangle,
+  Archive,
+  Camera,
+  ChevronRight,
+  ExternalLink,
+  Folder,
+  FolderOpen,
+  FolderSearch,
+  Plus,
+  RefreshCw,
+  X
+} from 'lucide-vue-next'
+import { api } from '../api'
+import { formatTime } from '../format'
+import {
+  addWorkspace,
+  openNewBackup,
+  requestRemoveWorkspace,
+  scanAll,
+  scanWorkspace,
+  selectBackup,
+  selectWorkspace,
+  state
+} from '../store'
+
+const workspaces = computed(() => state.config?.workspaces ?? [])
+const backupsOf = (id: string) => state.scans[id]?.backups ?? []
+const missingOf = (id: string) => state.scans[id]?.missing ?? false
+
+function toggle(id: string): void {
+  state.expanded[id] = !state.expanded[id]
+  if (state.expanded[id] && !state.scans[id]) void scanWorkspace(id)
+}
+</script>
+
+<template>
+  <aside class="sidebar">
+    <div class="sidebar-head">
+      <span class="sidebar-title">工作区</span>
+      <div class="sidebar-head-actions">
+        <button class="icon-btn" title="全部刷新" @click="scanAll">
+          <RefreshCw :size="14" />
+        </button>
+        <button class="icon-btn" title="添加工作区" @click="addWorkspace">
+          <Plus :size="16" />
+        </button>
+      </div>
+    </div>
+
+    <div class="tree">
+      <div v-if="workspaces.length === 0" class="tree-empty">
+        <FolderSearch :size="30" :stroke-width="1.3" />
+        <p>还没有工作区</p>
+        <p class="tree-empty-hint">工作区是存放备份的目录，可以添加多个。</p>
+        <button class="btn btn-primary" @click="addWorkspace">
+          <Plus :size="14" />
+          添加工作区目录
+        </button>
+      </div>
+
+      <div v-for="ws in workspaces" :key="ws.id" class="ws-node">
+        <div
+          class="tree-row ws-row"
+          :class="{ selected: state.selectedWorkspaceId === ws.id && !state.selectedBackupName }"
+          @click="selectWorkspace(ws.id)"
+        >
+          <button class="chevron" :class="{ open: state.expanded[ws.id] }" title="展开/收起" @click.stop="toggle(ws.id)">
+            <ChevronRight :size="13" />
+          </button>
+          <FolderOpen v-if="state.expanded[ws.id]" :size="15" class="row-icon ws-icon" />
+          <Folder v-else :size="15" class="row-icon ws-icon" />
+          <span class="row-label" :title="ws.path">{{ ws.name }}</span>
+          <AlertTriangle v-if="missingOf(ws.id)" :size="12" class="warn-icon" />
+          <span v-else class="row-count">{{ backupsOf(ws.id).length }}</span>
+          <span class="row-actions">
+            <button class="icon-btn xs" title="新建备份" @click.stop="openNewBackup(ws.id)">
+              <Plus :size="13" />
+            </button>
+            <button class="icon-btn xs" title="刷新" @click.stop="scanWorkspace(ws.id)">
+              <RefreshCw :size="12" />
+            </button>
+            <button class="icon-btn xs" title="在资源管理器中打开" @click.stop="api.openPath(ws.path)">
+              <ExternalLink :size="12" />
+            </button>
+            <button class="icon-btn xs" title="移除工作区" @click.stop="requestRemoveWorkspace(ws.id, ws.name)">
+              <X :size="13" />
+            </button>
+          </span>
+        </div>
+
+        <template v-if="state.expanded[ws.id]">
+          <div
+            v-for="b in backupsOf(ws.id)"
+            :key="b.name"
+            class="tree-row bk-row"
+            :class="{ selected: state.selectedWorkspaceId === ws.id && state.selectedBackupName === b.name }"
+            @click="selectBackup(ws.id, b.name)"
+          >
+            <Camera v-if="b.isSnapshot" :size="13" class="row-icon dim-icon" />
+            <Archive v-else :size="13" class="row-icon" />
+            <span class="row-label" :title="b.note ? `${b.name} — ${b.note}` : b.name">{{ b.name }}</span>
+            <span class="row-date">{{ formatTime(b.createdAt).slice(5) }}</span>
+          </div>
+          <div v-if="!missingOf(ws.id) && backupsOf(ws.id).length === 0" class="tree-hint">暂无备份</div>
+          <div v-if="missingOf(ws.id)" class="tree-hint warn-text">目录不存在</div>
+        </template>
+      </div>
+    </div>
+  </aside>
+</template>
