@@ -6,10 +6,13 @@ import type {
   CreateResult,
   GameSettings,
   RestoreResult,
+  RollbackList,
+  RollbackRestoreResult,
   Workspace,
   WorkspaceScan
 } from '../shared/types'
 import * as backups from './backups'
+import * as rollback from './rollback'
 import { addWorkspace, getConfig, getWorkspace, removeWorkspace, updateGame } from './store'
 import * as sys from './sys'
 
@@ -113,6 +116,26 @@ function registerIpc(): void {
   })
 
   ipcMain.handle('vault:shell:openPath', (_e, p: string) => shell.openPath(p))
+
+  ipcMain.handle('vault:rollback:list', (): Promise<RollbackList> => rollback.list(getConfig().game))
+
+  ipcMain.handle('vault:rollback:restore', async (_e, id: string): Promise<RollbackRestoreResult> => {
+    const game = getConfig().game
+    const r = await rollback.restorePoint(game, id)
+    return { ...r, points: (await rollback.list(game)).points }
+  })
+
+  ipcMain.handle('vault:rollback:remove', async (_e, id: string): Promise<RollbackList> => {
+    const game = getConfig().game
+    await rollback.removePoint(game, id)
+    return rollback.list(game)
+  })
+
+  ipcMain.handle('vault:rollback:clear', async (): Promise<RollbackList> => {
+    const game = getConfig().game
+    await rollback.clearPoints(game)
+    return rollback.list(game)
+  })
 
   ipcMain.handle('vault:game:status', async () => ({
     running: await sys.isGameRunning(getConfig().game.processName)

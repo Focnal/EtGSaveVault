@@ -1,6 +1,7 @@
 {
   "name": "etg-save-vault",
   "productName": "EtG Save Vault",
+  "author": {"name": "focnal", "email": "focnal@foxmail.com"},
   "version": "0.1.0",
   "private": true,
   "description": "Enter the Gungeon 存档备份管理工具",
@@ -9,7 +10,25 @@
     "dev": "node scripts/dev.mjs",
     "typecheck": "vue-tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
     "build": "npm run typecheck && vite build && node scripts/build-electron.mjs",
-    "start": "electron ."
+    "start": "electron .",
+    "make": "npm run build && electron-builder --win"
+  },
+  "build": {
+    "appId": "com.focnal.etgsavevault",
+    "productName": "EtG Save Vault",
+    "directories": {
+      "output": "dist-executable"
+    },
+    "files": [
+      "dist/**",
+      "dist-electron/**",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "portable"
+      ]
+    }
   },
   "dependencies": {
     "lucide-vue-next": "^0.469.0",
@@ -19,6 +38,7 @@
     "@types/node": "^22.10.2",
     "@vitejs/plugin-vue": "^5.2.1",
     "electron": "^33.2.1",
+    "electron-builder": "^26.15.3",
     "esbuild": "^0.24.2",
     "typescript": "~5.7.2",
     "vite": "^6.0.7",

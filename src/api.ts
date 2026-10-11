@@ -6,6 +6,8 @@ import type {
   GameSettings,
   GameStatus,
   RestoreResult,
+  RollbackList,
+  RollbackRestoreResult,
   WorkspaceScan
 } from '../shared/types'
 
@@ -22,6 +24,10 @@ export interface VaultApi {
   renameBackup(workspaceId: string, name: string, newName: string): Promise<void>
   setNote(workspaceId: string, name: string, note: string): Promise<void>
   openPath(p: string): Promise<string>
+  listRollbacks(): Promise<RollbackList>
+  restoreRollback(id: string): Promise<RollbackRestoreResult>
+  removeRollback(id: string): Promise<RollbackList>
+  clearRollbacks(): Promise<RollbackList>
   gameStatus(): Promise<GameStatus>
   killGame(): Promise<{ killed: boolean }>
   pickDirectory(title?: string): Promise<string | null>

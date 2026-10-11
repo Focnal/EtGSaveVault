@@ -18,6 +18,10 @@ const api = {
   setNote: (workspaceId: string, name: string, note: string) =>
     invoke('vault:backup:setNote', { workspaceId, name, note }),
   openPath: (p: string) => invoke('vault:shell:openPath', p),
+  listRollbacks: () => invoke('vault:rollback:list'),
+  restoreRollback: (id: string) => invoke('vault:rollback:restore', id),
+  removeRollback: (id: string) => invoke('vault:rollback:remove', id),
+  clearRollbacks: () => invoke('vault:rollback:clear'),
   gameStatus: () => invoke('vault:game:status'),
   killGame: () => invoke('vault:game:kill'),
   pickDirectory: (title?: string) => invoke('vault:dialog:pickDirectory', { title }),

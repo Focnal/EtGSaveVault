@@ -15,6 +15,8 @@ export interface GameSettings {
   dataDirName: string
   /** 备份内注册表导出文件名 */
   regFileName: string
+  /** 恢复备份前自动保留的回档点数量上限，0 表示关闭 */
+  rollbackKeep: number
 }
 
 export interface AppConfig {
@@ -59,6 +61,40 @@ export interface BackupDetail extends BackupSummary {
 
 export type BackupPhase = 'copy' | 'registry' | 'snapshot' | 'done'
 
+/** move = 原目录直接移入回档点（同卷零拷贝）；copy = 跨卷复制 */
+export type RollbackMode = 'move' | 'copy'
+
+/**
+ * 回档点：恢复备份前自动捕获的“当前存档”。
+ * 与用户主动创建的备份不同，它存放在应用数据目录，不占用工作区。
+ */
+export interface RollbackPoint {
+  id: string
+  path: string
+  createdAt: number
+  note: string
+  /** 触发该回档点的备份名称 */
+  sourceBackup: string | null
+  mode: RollbackMode
+  fileCount: number
+  totalSize: number
+  hasData: boolean
+  hasRegistry: boolean
+}
+
+export interface RollbackList {
+  /** 回档点存放目录，可在资源管理器中打开 */
+  storePath: string
+  /** 当前设置的保留份数，0 表示已关闭 */
+  keep: number
+  points: RollbackPoint[]
+}
+
+export interface RollbackRestoreResult {
+  registry: 'ok' | 'missing' | 'failed'
+  points: RollbackPoint[]
+}
+
 export interface BackupProgress {
   workspaceId: string
   phase: BackupPhase
@@ -72,7 +108,8 @@ export interface GameStatus {
 }
 
 export interface RestoreResult {
-  snapshotName: string | null
+  /** 恢复前捕获的回档点，null 表示未捕获（功能关闭或来源目录不存在） */
+  rollback: { id: string; mode: RollbackMode } | null
   registry: 'ok' | 'missing' | 'failed'
 }
 

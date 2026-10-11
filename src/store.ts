@@ -1,10 +1,19 @@
 import { reactive } from 'vue'
-import type { AppConfig, BackupDetail, BackupProgress, GameSettings, WorkspaceScan } from '../shared/types'
+import type {
+  AppConfig,
+  BackupDetail,
+  BackupProgress,
+  GameSettings,
+  RollbackList,
+  RollbackPoint,
+  WorkspaceScan
+} from '../shared/types'
 import { api, errMsg } from './api'
 
 export type ModalState =
   | { kind: 'none' }
   | { kind: 'settings' }
+  | { kind: 'rollback' }
   | { kind: 'newBackup'; workspaceId: string }
   | { kind: 'rename'; workspaceId: string; name: string }
   | {
@@ -16,10 +25,16 @@ export type ModalState =
       onConfirm: () => void | Promise<void>
     }
 
-interface Toast {
+export interface ToastAction {
+  label: string
+  run: () => void | Promise<void>
+}
+
+export interface Toast {
   id: number
   kind: 'ok' | 'err' | 'info'
   text: string
+  action?: ToastAction
 }
 
 export const state = reactive({
@@ -32,18 +47,32 @@ export const state = reactive({
   detailLoading: false,
   progress: null as BackupProgress | null,
   gameRunning: null as boolean | null,
+  rollbacks: null as RollbackList | null,
   modal: { kind: 'none' } as ModalState,
   toasts: [] as Toast[]
 })
 
 let toastId = 0
 
-export function toast(kind: Toast['kind'], text: string): void {
+/** 带操作按钮的提示保留更久，方便用户点击（例如「撤销本次恢复」）。 */
+export function toast(kind: Toast['kind'], text: string, action?: ToastAction): void {
   const id = ++toastId
-  state.toasts.push({ id, kind, text })
-  setTimeout(() => {
-    state.toasts = state.toasts.filter((t) => t.id !== id)
-  }, 4200)
+  state.toasts.push({ id, kind, text, action })
+  setTimeout(
+    () => {
+      state.toasts = state.toasts.filter((t) => t.id !== id)
+    },
+    action ? 15000 : 4200
+  )
+}
+
+export function dismissToast(id: number): void {
+  state.toasts = state.toasts.filter((t) => t.id !== id)
+}
+
+export async function runToastAction(t: Toast): Promise<void> {
+  dismissToast(t.id)
+  await t.action?.run()
 }
 
 export async function init(): Promise<void> {
@@ -56,6 +85,7 @@ export async function init(): Promise<void> {
   const first = state.config.workspaces[0]
   if (first) selectWorkspace(first.id)
   void refreshGameStatus()
+  void loadRollbacks()
 }
 
 export async function scanAll(): Promise<void> {
@@ -178,37 +208,63 @@ export async function createBackup(
   }
 }
 
+/**
+ * 恢复类操作共用：游戏未运行就直接确认，正在运行则先提示结束进程。
+ * 否则游戏退出时会把内存中的旧存档写回，覆盖恢复结果。
+ */
+async function withGameStopped(opts: {
+  title: string
+  message: string
+  confirmText: string
+  danger: boolean
+  run: () => Promise<void>
+}): Promise<void> {
+  const status = await api.gameStatus()
+  state.gameRunning = status.running
+  if (!status.running) {
+    state.modal = {
+      kind: 'confirm',
+      title: opts.title,
+      message: opts.message,
+      confirmText: opts.confirmText,
+      danger: opts.danger,
+      onConfirm: opts.run
+    }
+    return
+  }
+  state.modal = {
+    kind: 'confirm',
+    title: '游戏正在运行',
+    message: '恢复前需要结束游戏进程，否则游戏退出时可能把内存中的旧存档写回，覆盖恢复结果。',
+    confirmText: '结束游戏并恢复',
+    danger: true,
+    onConfirm: async () => {
+      const k = await api.killGame()
+      if (!k.killed) {
+        toast('err', '结束游戏进程失败，请手动关闭游戏后重试')
+        return
+      }
+      await new Promise((r) => setTimeout(r, 800))
+      await opts.run()
+    }
+  }
+}
+
+function registryText(registry: 'ok' | 'missing' | 'failed'): string {
+  if (registry === 'ok') return '注册表已导入'
+  if (registry === 'failed') return '注册表导入失败'
+  return '备份中无注册表文件'
+}
+
 export async function restoreBackup(workspaceId: string, name: string): Promise<void> {
   try {
-    const status = await api.gameStatus()
-    state.gameRunning = status.running
-    if (status.running) {
-      state.modal = {
-        kind: 'confirm',
-        title: '游戏正在运行',
-        message: '恢复前需要结束游戏进程，否则游戏退出时可能把内存中的旧存档写回，覆盖恢复结果。',
-        confirmText: '结束游戏并恢复',
-        danger: true,
-        onConfirm: async () => {
-          const k = await api.killGame()
-          if (!k.killed) {
-            toast('err', '结束游戏进程失败，请手动关闭游戏后重试')
-            return
-          }
-          await new Promise((r) => setTimeout(r, 800))
-          await doRestore(workspaceId, name)
-        }
-      }
-    } else {
-      state.modal = {
-        kind: 'confirm',
-        title: '恢复备份',
-        message: `将用「${name}」覆盖当前存档。覆盖前会自动为当前存档创建一份快照，可随时找回。`,
-        confirmText: '确认恢复',
-        danger: false,
-        onConfirm: () => doRestore(workspaceId, name)
-      }
-    }
+    await withGameStopped({
+      title: '恢复备份',
+      message: `将用「${name}」覆盖当前存档。覆盖前的存档会自动保留为回档点，可随时还原。`,
+      confirmText: '确认恢复',
+      danger: false,
+      run: () => doRestore(workspaceId, name)
+    })
   } catch (e) {
     toast('err', errMsg(e))
   }
@@ -217,13 +273,92 @@ export async function restoreBackup(workspaceId: string, name: string): Promise<
 async function doRestore(workspaceId: string, name: string): Promise<void> {
   try {
     const r = await api.restoreBackup(workspaceId, name)
-    const regText =
-      r.registry === 'ok' ? '注册表已导入' : r.registry === 'failed' ? '注册表导入失败' : '备份中无注册表文件'
-    toast('ok', `恢复完成：${regText}${r.snapshotName ? '，原存档已保存为快照' : ''}`)
+    const kept = r.rollback ? '，原存档已存为回档点' : ''
+    const point = r.rollback
+    toast('ok', `恢复完成：${registryText(r.registry)}${kept}`, point
+      ? { label: '撤销本次恢复', run: () => undoRestore(point.id) }
+      : undefined)
     await scanWorkspace(workspaceId)
+    await loadRollbacks()
     void refreshGameStatus()
   } catch (e) {
     toast('err', errMsg(e))
+  }
+}
+
+export async function loadRollbacks(): Promise<void> {
+  try {
+    state.rollbacks = await api.listRollbacks()
+  } catch (e) {
+    toast('err', errMsg(e))
+  }
+}
+
+/** 用指定回档点覆盖当前存档。 */
+export async function restoreRollback(id: string): Promise<void> {
+  try {
+    const r = await api.restoreRollback(id)
+    state.rollbacks = state.rollbacks ? { ...state.rollbacks, points: r.points } : state.rollbacks
+    toast('ok', `已还原到该回档点：${registryText(r.registry)}`)
+    void refreshGameStatus()
+  } catch (e) {
+    toast('err', errMsg(e))
+  }
+}
+
+/** 供 toast 上的「撤销本次恢复」直接调用，不再二次确认。 */
+async function undoRestore(id: string): Promise<void> {
+  await restoreRollback(id)
+}
+
+export async function requestRestoreRollback(point: RollbackPoint): Promise<void> {
+  try {
+    await withGameStopped({
+      title: '还原回档点',
+      message: `将用这份回档点覆盖当前存档。回档点本身不会被删除，可以再次还原。`,
+      confirmText: '确认还原',
+      danger: false,
+      run: () => restoreRollback(point.id)
+    })
+  } catch (e) {
+    toast('err', errMsg(e))
+  }
+}
+
+export function requestRemoveRollback(point: RollbackPoint): void {
+  state.modal = {
+    kind: 'confirm',
+    title: '删除回档点',
+    message: `将删除这份回档点，此操作无法撤销。`,
+    confirmText: '删除',
+    danger: true,
+    onConfirm: async () => {
+      try {
+        state.rollbacks = await api.removeRollback(point.id)
+        toast('ok', '回档点已删除')
+      } catch (e) {
+        toast('err', errMsg(e))
+      }
+    }
+  }
+}
+
+export function requestClearRollbacks(): void {
+  const n = state.rollbacks?.points.length ?? 0
+  state.modal = {
+    kind: 'confirm',
+    title: '清空回档点',
+    message: `将删除全部 ${n} 份回档点，工作区里的备份不受影响。`,
+    confirmText: '全部删除',
+    danger: true,
+    onConfirm: async () => {
+      try {
+        state.rollbacks = await api.clearRollbacks()
+        toast('ok', '回档点已清空')
+      } catch (e) {
+        toast('err', errMsg(e))
+      }
+    }
   }
 }
 
@@ -277,6 +412,7 @@ export async function saveNote(workspaceId: string, name: string, note: string):
 export async function saveSettings(patch: Partial<GameSettings>): Promise<void> {
   state.config = await api.updateGame(patch)
   toast('ok', '设置已保存')
+  void loadRollbacks()
 }
 
 export async function refreshGameStatus(): Promise<void> {

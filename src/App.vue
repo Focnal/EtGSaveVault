@@ -1,18 +1,21 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
-import { AlertTriangle, Archive, CheckCircle2, Gamepad2, Info, Settings } from 'lucide-vue-next'
+import { AlertTriangle, Archive, CheckCircle2, Gamepad2, History, Info, Settings } from 'lucide-vue-next'
 import BackupDetail from './components/BackupDetail.vue'
 import ConfirmModal from './components/ConfirmModal.vue'
 import NewBackupModal from './components/NewBackupModal.vue'
 import RenameModal from './components/RenameModal.vue'
+import RollbackPanel from './components/RollbackPanel.vue'
 import SettingsModal from './components/SettingsModal.vue'
 import Sidebar from './components/Sidebar.vue'
 import WorkspaceView from './components/WorkspaceView.vue'
-import { init, refreshGameStatus, state } from './store'
+import { init, refreshGameStatus, runToastAction, state } from './store'
 
 onMounted(() => {
   void init()
 })
+
+const rollbackCount = computed(() => state.rollbacks?.points.length ?? 0)
 
 const progressPct = computed(() => {
   const p = state.progress
@@ -34,6 +37,11 @@ const gameStatusText = computed(() => {
         <span>EtG Save Vault</span>
       </div>
       <div class="topbar-right">
+        <button class="chip" title="回档点：恢复备份前自动保留的存档" @click="state.modal = { kind: 'rollback' }">
+          <History :size="13" />
+          <span>回档点</span>
+          <span v-if="rollbackCount" class="chip-count">{{ rollbackCount }}</span>
+        </button>
         <button
           class="chip"
           :class="state.gameRunning ? 'chip-warn' : 'chip-ok'"
@@ -73,6 +81,7 @@ const gameStatusText = computed(() => {
     </div>
 
     <SettingsModal v-if="state.modal.kind === 'settings'" />
+    <RollbackPanel v-if="state.modal.kind === 'rollback'" />
     <NewBackupModal v-if="state.modal.kind === 'newBackup'" />
     <RenameModal v-if="state.modal.kind === 'rename'" />
     <ConfirmModal v-if="state.modal.kind === 'confirm'" />
@@ -82,7 +91,8 @@ const gameStatusText = computed(() => {
         <CheckCircle2 v-if="t.kind === 'ok'" :size="15" />
         <AlertTriangle v-else-if="t.kind === 'err'" :size="15" />
         <Info v-else :size="15" />
-        <span>{{ t.text }}</span>
+        <span class="toast-text">{{ t.text }}</span>
+        <button v-if="t.action" class="toast-action" @click="runToastAction(t)">{{ t.action.label }}</button>
       </div>
     </div>
   </div>

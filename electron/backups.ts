@@ -10,6 +10,8 @@ import type {
   RestoreResult,
   Workspace
 } from '../shared/types'
+import { copyDir, pathExists, walkStats } from './fsutil'
+import * as rollback from './rollback'
 import { exportRegistry, importRegistry } from './sys'
 
 export const SNAPSHOT_PREFIX = '_snapshot_'
@@ -31,12 +33,6 @@ interface BackupMeta {
   note?: string
 }
 
-function timestamp(): string {
-  const d = new Date()
-  const p = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`
-}
-
 export function validateBackupName(name: string): string | null {
   if (!name || !name.trim()) return '备份名称不能为空'
   if (name !== name.trim()) return '名称首尾不能有空格'
@@ -56,15 +52,6 @@ export function backupPath(ws: Workspace, name: string): string {
   return full
 }
 
-async function pathExists(p: string): Promise<boolean> {
-  try {
-    await fs.access(p)
-    return true
-  } catch {
-    return false
-  }
-}
-
 async function readMeta(dir: string): Promise<BackupMeta> {
   try {
     return JSON.parse(await fs.readFile(path.join(dir, META_FILE), 'utf8')) as BackupMeta
@@ -75,50 +62,6 @@ async function readMeta(dir: string): Promise<BackupMeta> {
 
 async function writeMeta(dir: string, meta: BackupMeta): Promise<void> {
   await fs.writeFile(path.join(dir, META_FILE), JSON.stringify(meta, null, 2), 'utf8')
-}
-
-async function walkStats(dir: string): Promise<{ count: number; size: number }> {
-  let count = 0
-  let size = 0
-  const stack = [dir]
-  while (stack.length > 0) {
-    const cur = stack.pop() as string
-    let entries
-    try {
-      entries = await fs.readdir(cur, { withFileTypes: true })
-    } catch {
-      continue
-    }
-    for (const e of entries) {
-      const full = path.join(cur, e.name)
-      if (e.isDirectory()) {
-        stack.push(full)
-      } else if (e.isFile()) {
-        count += 1
-        try {
-          size += (await fs.stat(full)).size
-        } catch {
-          // 忽略读取失败的个别文件
-        }
-      }
-    }
-  }
-  return { count, size }
-}
-
-async function copyDir(src: string, dest: string, onFile: () => void): Promise<void> {
-  await fs.mkdir(dest, { recursive: true })
-  const entries = await fs.readdir(src, { withFileTypes: true })
-  for (const e of entries) {
-    const s = path.join(src, e.name)
-    const d = path.join(dest, e.name)
-    if (e.isDirectory()) {
-      await copyDir(s, d, onFile)
-    } else if (e.isFile()) {
-      await fs.copyFile(s, d)
-      onFile()
-    }
-  }
 }
 
 export async function listBackups(
@@ -241,33 +184,32 @@ export async function restoreBackup(
     throw new Error('该备份缺少注册表文件，已损坏，无法恢复')
   }
 
-  // 恢复前先为当前存档创建安全快照
-  let snapshotName: string | null = null
-  if (await pathExists(game.sourcePath)) {
-    snapshotName = `${SNAPSHOT_PREFIX}${timestamp()}`
-    progress({ phase: 'snapshot', done: 0, total: 0, label: '快照当前存档' })
-    const snapDir = path.join(ws.path, snapshotName)
-    await copyDir(game.sourcePath, path.join(snapDir, game.dataDirName), () => {})
-    await exportRegistry(game.registryKey, path.join(snapDir, game.regFileName))
-    await writeMeta(snapDir, { createdAt: Date.now(), note: `恢复「${name}」前的自动快照` })
-  }
+  // 恢复前把当前存档捕获为回档点：同卷时零拷贝移入，跨卷时复制
+  progress({ phase: 'snapshot', done: 0, total: 0, label: '保存回档点' })
+  const captured = await rollback.capture(game, name, game.rollbackKeep, progress)
 
   const { count } = await walkStats(dataSrc)
   let done = 0
   progress({ phase: 'copy', done, total: count, label: '恢复存档文件' })
   await fs.rm(game.sourcePath, { recursive: true, force: true })
-  await copyDir(dataSrc, game.sourcePath, () => {
-    done += 1
-    if (done % 5 === 0 || done === count) {
-      progress({ phase: 'copy', done, total: count, label: '恢复存档文件' })
-    }
-  })
+  try {
+    await copyDir(dataSrc, game.sourcePath, () => {
+      done += 1
+      if (done % 5 === 0 || done === count) {
+        progress({ phase: 'copy', done, total: count, label: '恢复存档文件' })
+      }
+    })
+  } catch (e) {
+    const why = e instanceof Error ? e.message : String(e)
+    const hint = captured ? '，原存档已保存在回档点，可在「回档点」中还原' : ''
+    throw new Error(`恢复存档文件失败：${why}${hint}`)
+  }
 
   const regFile = path.join(bPath, game.regFileName)
   const registry: RestoreResult['registry'] = (await importRegistry(regFile)) ? 'ok' : 'failed'
 
   progress({ phase: 'done', done: count, total: count, label: '完成' })
-  return { snapshotName, registry }
+  return { rollback: captured, registry }
 }
 
 export async function deleteBackup(ws: Workspace, name: string): Promise<void> {

@@ -11,7 +11,8 @@ export function defaultGameSettings(): GameSettings {
     registryKey: 'HKCU\\Software\\Dodge Roll\\Enter the Gungeon',
     processName: 'etg.exe',
     dataDirName: 'Enter the Gungeon',
-    regFileName: 'Enter the Gungeon.reg'
+    regFileName: 'Enter the Gungeon.reg',
+    rollbackKeep: 1
   }
 }
 
@@ -24,6 +25,9 @@ function configPath(): string {
 function normalize(raw: unknown): AppConfig {
   const data = (raw ?? {}) as Partial<AppConfig>
   const game = { ...defaultGameSettings(), ...(data.game ?? {}) }
+  if (typeof game.rollbackKeep !== 'number' || !Number.isFinite(game.rollbackKeep) || game.rollbackKeep < 0) {
+    game.rollbackKeep = defaultGameSettings().rollbackKeep
+  }
   const workspaces = Array.isArray(data.workspaces)
     ? data.workspaces.filter((w): w is Workspace => !!w && typeof w.id === 'string' && typeof w.path === 'string')
     : []
