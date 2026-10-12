@@ -16,7 +16,7 @@ import {
 } from 'lucide-vue-next'
 import { api } from '../api'
 import { formatSize, formatTime } from '../format'
-import { requestDeleteBackup, restoreBackup, saveNote, state } from '../store'
+import { requestDeleteBackup, restoreBackup, saveNote, state, openRename } from '../store'
 
 const ENTRY_SHOW = 100
 
@@ -49,7 +49,7 @@ function onSaveNote(): void {
 
 function onRename(): void {
   const dd = state.detail
-  if (dd) state.modal = { kind: 'rename', workspaceId: dd.workspaceId, name: dd.name }
+  if (dd) openRename(dd.workspaceId, dd.name)
 }
 </script>
 

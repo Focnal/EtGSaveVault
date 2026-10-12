@@ -1,30 +1,19 @@
 <script setup lang="ts">
-import { computed } from 'vue'
 import {
   AlertTriangle,
   Archive,
   Camera,
   ChevronRight,
-  ExternalLink,
   Folder,
   FolderOpen,
   FolderSearch,
   Plus,
-  RefreshCw,
-  X
+  RefreshCw
 } from 'lucide-vue-next'
-import { api } from '../api'
+import { computed } from 'vue'
 import { formatTime } from '../format'
-import {
-  addWorkspace,
-  openNewBackup,
-  requestRemoveWorkspace,
-  scanAll,
-  scanWorkspace,
-  selectBackup,
-  selectWorkspace,
-  state
-} from '../store'
+import { openBackupMenu, openWorkspaceMenu } from '../menus'
+import { addWorkspace, scanAll, scanWorkspace, selectBackup, selectWorkspace, state } from '../store'
 
 const workspaces = computed(() => state.config?.workspaces ?? [])
 const backupsOf = (id: string) => state.scans[id]?.backups ?? []
@@ -66,6 +55,7 @@ function toggle(id: string): void {
           class="tree-row ws-row"
           :class="{ selected: state.selectedWorkspaceId === ws.id && !state.selectedBackupName }"
           @click="selectWorkspace(ws.id)"
+          @contextmenu.prevent="openWorkspaceMenu($event, ws)"
         >
           <button class="chevron" :class="{ open: state.expanded[ws.id] }" title="展开/收起" @click.stop="toggle(ws.id)">
             <ChevronRight :size="13" />
@@ -75,20 +65,6 @@ function toggle(id: string): void {
           <span class="row-label" :title="ws.path">{{ ws.name }}</span>
           <AlertTriangle v-if="missingOf(ws.id)" :size="12" class="warn-icon" />
           <span v-else class="row-count">{{ backupsOf(ws.id).length }}</span>
-          <span class="row-actions">
-            <button class="icon-btn xs" title="新建备份" @click.stop="openNewBackup(ws.id)">
-              <Plus :size="13" />
-            </button>
-            <button class="icon-btn xs" title="刷新" @click.stop="scanWorkspace(ws.id)">
-              <RefreshCw :size="12" />
-            </button>
-            <button class="icon-btn xs" title="在资源管理器中打开" @click.stop="api.openPath(ws.path)">
-              <ExternalLink :size="12" />
-            </button>
-            <button class="icon-btn xs" title="移除工作区" @click.stop="requestRemoveWorkspace(ws.id, ws.name)">
-              <X :size="13" />
-            </button>
-          </span>
         </div>
 
         <template v-if="state.expanded[ws.id]">
@@ -98,6 +74,7 @@ function toggle(id: string): void {
             class="tree-row bk-row"
             :class="{ selected: state.selectedWorkspaceId === ws.id && state.selectedBackupName === b.name }"
             @click="selectBackup(ws.id, b.name)"
+            @contextmenu.prevent="openBackupMenu($event, ws.id, b)"
           >
             <Camera v-if="b.isSnapshot" :size="13" class="row-icon dim-icon" />
             <Archive v-else :size="13" class="row-icon" />

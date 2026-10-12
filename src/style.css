@@ -394,21 +394,6 @@ code {
   flex: none;
 }
 
-.row-actions {
-  display: none;
-  align-items: center;
-  gap: 2px;
-}
-
-.tree-row:hover .row-actions {
-  display: flex;
-}
-
-.tree-row:hover .row-count,
-.tree-row:hover .row-date {
-  display: none;
-}
-
 .bk-row {
   padding-left: 27px;
 }
@@ -417,6 +402,73 @@ code {
   padding: 2px 0 8px 33px;
   color: var(--text-3);
   font-size: 12px;
+}
+
+/* ---------- 右键菜单 ---------- */
+
+.context-menu {
+  position: fixed;
+  z-index: 80;
+  min-width: 188px;
+  padding: 4px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.55);
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 5px;
+  color: var(--text);
+  font-size: 12.5px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.menu-item:hover {
+  background: var(--bg-3);
+}
+
+.menu-item:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.menu-item:disabled:hover {
+  background: none;
+}
+
+.menu-item svg {
+  color: var(--text-3);
+  flex: none;
+}
+
+.menu-item:hover svg {
+  color: var(--text-2);
+}
+
+.menu-item-danger {
+  color: var(--red);
+}
+
+.menu-item-danger svg,
+.menu-item-danger:hover svg {
+  color: var(--red);
+}
+
+.menu-item-danger:hover {
+  background: rgba(233, 100, 95, 0.12);
+}
+
+.menu-divider {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border);
 }
 
 /* ---------- 主视图通用 ---------- */

@@ -3,6 +3,7 @@ import { computed, onMounted } from 'vue'
 import { AlertTriangle, Archive, CheckCircle2, Gamepad2, History, Info, Settings } from 'lucide-vue-next'
 import BackupDetail from './components/BackupDetail.vue'
 import ConfirmModal from './components/ConfirmModal.vue'
+import ContextMenu from './components/ContextMenu.vue'
 import NewBackupModal from './components/NewBackupModal.vue'
 import RenameModal from './components/RenameModal.vue'
 import RollbackPanel from './components/RollbackPanel.vue'
@@ -85,6 +86,7 @@ const gameStatusText = computed(() => {
     <NewBackupModal v-if="state.modal.kind === 'newBackup'" />
     <RenameModal v-if="state.modal.kind === 'rename'" />
     <ConfirmModal v-if="state.modal.kind === 'confirm'" />
+    <ContextMenu v-if="state.menu" />
 
     <div class="toasts">
       <div v-for="t in state.toasts" :key="t.id" class="toast" :class="'toast-' + t.kind">

@@ -1,4 +1,4 @@
-import { reactive } from 'vue'
+import { reactive, type Component } from 'vue'
 import type {
   AppConfig,
   BackupDetail,
@@ -37,6 +37,26 @@ export interface Toast {
   action?: ToastAction
 }
 
+export interface MenuItem {
+  label: string
+  icon?: Component
+  danger?: boolean
+  disabled?: boolean
+  run: () => void | Promise<void>
+}
+
+export interface MenuDivider {
+  divider: true
+}
+
+export type MenuEntry = MenuItem | MenuDivider
+
+export interface MenuState {
+  x: number
+  y: number
+  entries: MenuEntry[]
+}
+
 export const state = reactive({
   config: null as AppConfig | null,
   scans: {} as Record<string, WorkspaceScan>,
@@ -48,6 +68,7 @@ export const state = reactive({
   progress: null as BackupProgress | null,
   gameRunning: null as boolean | null,
   rollbacks: null as RollbackList | null,
+  menu: null as MenuState | null,
   modal: { kind: 'none' } as ModalState,
   toasts: [] as Toast[]
 })
@@ -73,6 +94,26 @@ export function dismissToast(id: number): void {
 export async function runToastAction(t: Toast): Promise<void> {
   dismissToast(t.id)
   await t.action?.run()
+}
+
+/** 在鼠标位置打开右键菜单。 */
+export function openMenu(e: MouseEvent, entries: MenuEntry[]): void {
+  state.menu = { x: e.clientX, y: e.clientY, entries }
+}
+
+export function closeMenu(): void {
+  state.menu = null
+}
+
+/** 执行菜单项：先收起菜单，再执行动作。 */
+export async function runMenuEntry(entry: MenuEntry): Promise<void> {
+  if ('divider' in entry) return
+  closeMenu()
+  try {
+    await entry.run()
+  } catch (e) {
+    toast('err', errMsg(e))
+  }
 }
 
 export async function init(): Promise<void> {
@@ -175,6 +216,10 @@ export function requestRemoveWorkspace(id: string, name: string): void {
 
 export function openNewBackup(workspaceId: string): void {
   state.modal = { kind: 'newBackup', workspaceId }
+}
+
+export function openRename(workspaceId: string, name: string): void {
+  state.modal = { kind: 'rename', workspaceId, name }
 }
 
 export async function createBackup(

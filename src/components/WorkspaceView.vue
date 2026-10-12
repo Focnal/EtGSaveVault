@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { Archive, Camera, ExternalLink, FolderOpen, HardDrive, Plus, RefreshCw } from 'lucide-vue-next'
 import { api } from '../api'
 import { formatSize, formatTime } from '../format'
+import { openBackupMenu } from '../menus'
 import { openNewBackup, scanWorkspace, selectBackup, state } from '../store'
 
 const ws = computed(() => state.config?.workspaces.find((w) => w.id === state.selectedWorkspaceId) ?? null)
@@ -68,7 +69,13 @@ const game = computed(() => state.config?.game ?? null)
     <div v-if="scan?.missing" class="hint warn-text">目录不存在：{{ ws.path }}</div>
     <div v-else-if="backups.length === 0" class="hint">还没有备份，点击「新建备份」创建第一份。</div>
     <div v-else class="bk-table">
-      <div v-for="b in backups" :key="b.name" class="bk-table-row" @click="selectBackup(ws.id, b.name)">
+      <div
+        v-for="b in backups"
+        :key="b.name"
+        class="bk-table-row"
+        @click="selectBackup(ws.id, b.name)"
+        @contextmenu.prevent="openBackupMenu($event, ws.id, b)"
+      >
         <Camera v-if="b.isSnapshot" :size="14" class="dim-icon" />
         <Archive v-else :size="14" class="accent-icon" />
         <span class="bk-name" :title="b.note || b.name">{{ b.name }}</span>
