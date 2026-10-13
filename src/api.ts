@@ -42,7 +42,7 @@ declare global {
 
 export const api = window.vault
 
-/** ipcRenderer.invoke 抛出的错误带有通道名前缀，这里剥掉后展示给用户。 */
+/** 剥掉 ipcRenderer.invoke 错误的通道名前缀，便于直接展示 */
 export function errMsg(e: unknown): string {
   const m = e instanceof Error ? e.message : String(e)
   return m.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')

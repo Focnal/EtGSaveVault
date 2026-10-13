@@ -75,7 +75,7 @@ export const state = reactive({
 
 let toastId = 0
 
-/** 带操作按钮的提示保留更久，方便用户点击（例如「撤销本次恢复」）。 */
+/** 带操作按钮的提示保留更久，方便点击 */
 export function toast(kind: Toast['kind'], text: string, action?: ToastAction): void {
   const id = ++toastId
   state.toasts.push({ id, kind, text, action })
@@ -96,7 +96,6 @@ export async function runToastAction(t: Toast): Promise<void> {
   await t.action?.run()
 }
 
-/** 在鼠标位置打开右键菜单。 */
 export function openMenu(e: MouseEvent, entries: MenuEntry[]): void {
   state.menu = { x: e.clientX, y: e.clientY, entries }
 }
@@ -105,7 +104,7 @@ export function closeMenu(): void {
   state.menu = null
 }
 
-/** 执行菜单项：先收起菜单，再执行动作。 */
+/** 先收起菜单再执行动作 */
 export async function runMenuEntry(entry: MenuEntry): Promise<void> {
   if ('divider' in entry) return
   closeMenu()
@@ -253,10 +252,7 @@ export async function createBackup(
   }
 }
 
-/**
- * 恢复类操作共用：游戏未运行就直接确认，正在运行则先提示结束进程。
- * 否则游戏退出时会把内存中的旧存档写回，覆盖恢复结果。
- */
+/** 恢复类操作共用：游戏运行中先提示结束进程，否则退出时会把旧存档写回 */
 async function withGameStopped(opts: {
   title: string
   message: string
@@ -339,7 +335,6 @@ export async function loadRollbacks(): Promise<void> {
   }
 }
 
-/** 用指定回档点覆盖当前存档。 */
 export async function restoreRollback(id: string): Promise<void> {
   try {
     const r = await api.restoreRollback(id)
@@ -351,7 +346,7 @@ export async function restoreRollback(id: string): Promise<void> {
   }
 }
 
-/** 供 toast 上的「撤销本次恢复」直接调用，不再二次确认。 */
+/** 供「撤销本次恢复」直接调用，不再二次确认 */
 async function undoRestore(id: string): Promise<void> {
   await restoreRollback(id)
 }

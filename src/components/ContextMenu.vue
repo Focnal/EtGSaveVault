@@ -5,7 +5,7 @@ import { closeMenu, runMenuEntry, state, type MenuEntry } from '../store'
 const el = ref<HTMLElement | null>(null)
 const pos = ref({ x: 0, y: 0 })
 
-/** 贴边时向内收，避免菜单被窗口裁掉。 */
+/** 贴边时向内收，避免被裁掉 */
 function place(): void {
   const node = el.value
   const menu = state.menu
@@ -36,7 +36,7 @@ function pick(entry: MenuEntry): void {
 
 onMounted(() => {
   void nextTick(place)
-  // 捕获阶段监听，确保点在其他任何地方都能收起菜单
+  // 捕获阶段监听，点击任何地方都能收起
   window.addEventListener('mousedown', onPointerDown, true)
   window.addEventListener('keydown', onKey)
   window.addEventListener('resize', onDismiss)
@@ -53,7 +53,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('scroll', onDismiss, true)
 })
 
-// 菜单已打开时右键另一行：state.menu 被替换，组件不会重新挂载，需要重新定位
+// 已打开时右键另一行不会重新挂载，需要重新定位
 watch(
   () => state.menu,
   () => void nextTick(place)

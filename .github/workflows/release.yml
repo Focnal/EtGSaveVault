@@ -1,0 +1,93 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows-portable:
+    name: Build portable (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Check tag matches package.json version
+        if: ${{ startsWith(github.ref, 'refs/tags/') }}
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $tag = '${{ github.ref_name }}'.TrimStart('v')
+          if ($version -ne $tag) {
+            Write-Host "::error::tag $tag 与 package.json version $version 不一致"
+            exit 1
+          }
+          Write-Host "版本校验通过：$version"
+
+      # package.json 的 config 字段是给国内开发用的镜像；
+      # GitHub runner 直连官方源更快更稳，所以这里去掉它。
+      - name: Use official download sources
+        run: npm pkg delete config
+
+      - name: Install dependencies
+        run: npm ci
+
+      # make = typecheck + vite build + esbuild + electron-builder
+      # --publish never：打包交给下面的 gh release，不让 electron-builder 自己发
+      - name: Build and package
+        run: npm run make -- --publish never
+
+      - name: Generate SHA256 checksums
+        shell: pwsh
+        run: |
+          Get-ChildItem dist-executable -Filter *.exe | ForEach-Object {
+            '{0}  {1}' -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name
+          } | Set-Content dist-executable/SHA256SUMS.txt -Encoding ascii
+          Get-Content dist-executable/SHA256SUMS.txt
+
+      # 手动触发（workflow_dispatch）时只留 artifacts，方便试跑
+      - name: Upload artifact
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: EtGSaveVault-windows-portable
+          path: |
+            dist-executable/*.exe
+            dist-executable/SHA256SUMS.txt
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        if: ${{ startsWith(github.ref, 'refs/tags/') }}
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # 下面靠 $LASTEXITCODE 判断成败，避免原生命令的 stderr 直接中断脚本
+          $ErrorActionPreference = 'Continue'
+
+          $tag = '${{ github.ref_name }}'
+          $assets = @(Get-ChildItem dist-executable -Filter *.exe | ForEach-Object { $_.FullName })
+          $assets += (Resolve-Path dist-executable/SHA256SUMS.txt).Path
+
+          # 已存在同名 release（重跑 workflow）就覆盖上传，否则新建
+          gh release upload $tag @assets --clobber 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            $ghArgs = @('release', 'create', $tag) + $assets + @('--title', $tag, '--generate-notes')
+            if ($tag -match '-') { $ghArgs += '--prerelease' }
+            gh @ghArgs
+          }
+          if ($LASTEXITCODE -ne 0) { throw "发布 release 失败：$tag" }
+
+          Write-Host "已发布 release $tag"

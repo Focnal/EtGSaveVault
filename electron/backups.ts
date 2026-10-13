@@ -42,7 +42,7 @@ export function validateBackupName(name: string): string | null {
   return null
 }
 
-/** 解析备份目录的绝对路径，并确保其严格位于工作区根目录下一层。 */
+/** 解析备份目录绝对路径，并确保其位于工作区根目录下一层 */
 export function backupPath(ws: Workspace, name: string): string {
   const err = validateBackupName(name)
   if (err) throw new Error(err)
@@ -124,7 +124,7 @@ export async function backupDetail(
       }
     }
   } catch {
-    // 数据目录缺失时返回空列表
+    // 数据目录缺失
   }
   entries.sort((a, b) => Number(b.isDir) - Number(a.isDir) || a.name.localeCompare(b.name))
   return { ...found, entries }
@@ -184,7 +184,7 @@ export async function restoreBackup(
     throw new Error('该备份缺少注册表文件，已损坏，无法恢复')
   }
 
-  // 恢复前把当前存档捕获为回档点：同卷时零拷贝移入，跨卷时复制
+  // 恢复前先捕获回档点
   progress({ phase: 'snapshot', done: 0, total: 0, label: '保存回档点' })
   const captured = await rollback.capture(game, name, game.rollbackKeep, progress)
 

@@ -7,11 +7,8 @@ import { copyDir, pathExists, pointStamp, walkStats } from './fsutil'
 import { exportRegistry, importRegistry } from './sys'
 
 /**
- * 回档点（rollback point）= 恢复备份前自动保存的“当前存档”。
- *
- * 它与用户主动创建的备份是两种东西，因此存放在应用数据目录而不是工作区里：
- * 既不会污染工作区的备份树，也能和存档来源目录同卷 —— 同卷时用 rename 捕获，
- * 零拷贝、瞬时完成。
+ * 回档点：恢复备份前自动保存的当前存档。
+ * 放在应用数据目录而非工作区，以便与来源目录同卷、用 rename 零拷贝捕获。
  */
 
 const META_FILE = 'rollback-meta.json'
@@ -32,7 +29,7 @@ interface PointMeta {
   sourcePath: string
 }
 
-/** 回档点的根目录：优先 %LOCALAPPDATA%（与游戏存档同在 C: 卷）。 */
+/** 回档点根目录：优先 %LOCALAPPDATA%（与存档同在 C: 卷） */
 function storeBase(): string {
   if (process.platform === 'win32' && process.env.LOCALAPPDATA) {
     return path.join(process.env.LOCALAPPDATA, 'EtG Save Vault')
@@ -40,10 +37,7 @@ function storeBase(): string {
   return app.getPath('userData')
 }
 
-/**
- * 回档点按“存档来源目录”归属，而不是按工作区 —— 恢复动作改写的始终是来源目录，
- * 多个工作区可能指向同一个游戏存档。
- */
+/** 按存档来源目录归属：恢复改写的始终是来源目录，多个工作区可能指向同一存档 */
 export function storePath(game: GameSettings): string {
   const raw = (game.sourcePath || '').trim() || '(unset)'
   const norm = path.resolve(raw).replace(/[\\/]+$/, '').toLowerCase()
@@ -102,7 +96,7 @@ export async function list(game: GameSettings): Promise<RollbackList> {
   return { storePath: storePath(game), keep: game.rollbackKeep, points: await listPoints(game) }
 }
 
-/** 只保留最新的 keep 份，多余的按时间从旧到新删除。 */
+/** 只保留最新的 keep 份，其余按时间从旧到新删除 */
 async function prune(dir: string, keep: number): Promise<void> {
   let entries
   try {
@@ -123,12 +117,8 @@ async function prune(dir: string, keep: number): Promise<void> {
 }
 
 /**
- * 捕获当前存档为回档点。
- * 同卷时直接 rename（零拷贝、瞬时），跨卷时回退为复制。
- * 返回 null 表示未捕获（已关闭该功能或来源目录不存在）。
- *
- * 注意两种模式的副作用不同：move 会消耗掉源目录（rename 的必然结果），
- * copy 保留源目录，由调用方在替换存档时自行删除。两条路径下回档点内容都完整。
+ * 捕获当前存档为回档点：同卷 rename（零拷贝），跨卷退化为复制。
+ * move 会消耗源目录，copy 保留源目录由调用方删除；返回 null 表示未捕获。
  */
 export async function capture(
   game: GameSettings,
@@ -143,7 +133,6 @@ export async function capture(
   await fs.mkdir(dir, { recursive: true })
   const id = pointStamp()
   const target = path.join(dir, id)
-  // 两种模式下回档点布局保持一致：<回档点>/<dataDirName>/ 与 <回档点>/<regFileName>
   const dataDest = path.join(target, game.dataDirName)
 
   let mode: RollbackMode = 'move'
@@ -157,7 +146,7 @@ export async function capture(
     await copyDir(game.sourcePath, dataDest, () => {})
   }
 
-  // 注册表无法随目录一起搬走，单独导出到回档点内
+  // 注册表不能随目录搬迁，单独导出到回档点内
   await exportRegistry(game.registryKey, path.join(target, game.regFileName))
 
   const meta: PointMeta = {
@@ -173,7 +162,7 @@ export async function capture(
   return { id, mode }
 }
 
-/** 用某个回档点覆盖当前存档（“撤销本次恢复”的底层实现）。 */
+/** 用回档点覆盖当前存档（「撤销本次恢复」的底层实现） */
 export async function restorePoint(
   game: GameSettings,
   id: string

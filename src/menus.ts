@@ -12,12 +12,9 @@ import {
   type MenuEntry
 } from './store'
 
-/**
- * 右键菜单的定义集中在这里。
- * 同一个备份菜单会出现在左侧树和工作区视图两处，集中定义可避免两边逐渐不一致。
- */
+/** 备份菜单同时出现在侧栏与工作区视图，集中定义避免两处不一致 */
 
-/** 工作区文件夹的菜单，替代原先悬浮才出现的小按钮。 */
+/** 工作区文件夹的菜单 */
 export function openWorkspaceMenu(e: MouseEvent, ws: Workspace): void {
   const entries: MenuEntry[] = [
     { label: '新建备份', icon: Plus, run: () => openNewBackup(ws.id) },
@@ -29,11 +26,11 @@ export function openWorkspaceMenu(e: MouseEvent, ws: Workspace): void {
   openMenu(e, entries)
 }
 
-/** 备份条目的菜单，与详情页头部的操作保持一致。 */
+/** 备份条目的菜单，与详情页头部操作一致 */
 export function openBackupMenu(e: MouseEvent, workspaceId: string, b: BackupSummary): void {
   const entries: MenuEntry[] = [
     { label: '重命名', icon: Pencil, run: () => openRename(workspaceId, b.name) },
-    // 数据目录或注册表缺失的备份无法恢复，与详情页的按钮保持一致
+    // 数据或注册表缺失时无法恢复，与详情页按钮一致
     { label: '恢复此存档', icon: RotateCcw, disabled: !b.valid, run: () => restoreBackup(workspaceId, b.name) },
     { label: '在资源管理器中打开', icon: ExternalLink, run: () => api.openPath(b.path) },
     { divider: true },

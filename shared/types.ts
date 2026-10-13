@@ -5,17 +5,15 @@ export interface Workspace {
 }
 
 export interface GameSettings {
-  /** 游戏存档所在目录（备份来源） */
+  /** 游戏存档目录（备份来源） */
   sourcePath: string
-  /** 随存档一起导出的注册表键 */
+  /** 随存档导出的注册表键 */
   registryKey: string
-  /** 游戏进程名，用于恢复前检测 */
+  /** 恢复前检测用的游戏进程名 */
   processName: string
-  /** 备份内保存存档数据的子目录名 */
   dataDirName: string
-  /** 备份内注册表导出文件名 */
   regFileName: string
-  /** 恢复备份前自动保留的回档点数量上限，0 表示关闭 */
+  /** 回档点保留份数，0 表示关闭 */
   rollbackKeep: number
 }
 
@@ -32,17 +30,16 @@ export interface BackupSummary {
   fileCount: number
   totalSize: number
   hasRegistry: boolean
-  /** 是否包含存档数据目录 */
   hasData: boolean
   isSnapshot: boolean
   note: string
-  /** 存档数据目录与注册表文件齐全，缺一不可，否则视为损坏 */
+  /** 数据目录与注册表齐全，否则视为损坏 */
   valid: boolean
 }
 
 export interface WorkspaceScan {
   workspaceId: string
-  /** 工作区目录是否已丢失 */
+  /** 工作区目录已丢失 */
   missing: boolean
   backups: BackupSummary[]
 }
@@ -55,25 +52,22 @@ export interface FileEntry {
 }
 
 export interface BackupDetail extends BackupSummary {
-  /** 存档数据目录的顶层条目 */
+  /** 数据目录的顶层条目 */
   entries: FileEntry[]
 }
 
 export type BackupPhase = 'copy' | 'registry' | 'snapshot' | 'done'
 
-/** move = 原目录直接移入回档点（同卷零拷贝）；copy = 跨卷复制 */
+/** move = 同卷 rename（零拷贝）；copy = 跨卷复制 */
 export type RollbackMode = 'move' | 'copy'
 
-/**
- * 回档点：恢复备份前自动捕获的“当前存档”。
- * 与用户主动创建的备份不同，它存放在应用数据目录，不占用工作区。
- */
+/** 恢复备份前自动捕获的当前存档，存放在应用数据目录而非工作区 */
 export interface RollbackPoint {
   id: string
   path: string
   createdAt: number
   note: string
-  /** 触发该回档点的备份名称 */
+  /** 触发该回档点的备份 */
   sourceBackup: string | null
   mode: RollbackMode
   fileCount: number
@@ -83,9 +77,9 @@ export interface RollbackPoint {
 }
 
 export interface RollbackList {
-  /** 回档点存放目录，可在资源管理器中打开 */
+  /** 回档点存放目录 */
   storePath: string
-  /** 当前设置的保留份数，0 表示已关闭 */
+  /** 保留份数，0 表示已关闭 */
   keep: number
   points: RollbackPoint[]
 }
@@ -108,7 +102,7 @@ export interface GameStatus {
 }
 
 export interface RestoreResult {
-  /** 恢复前捕获的回档点，null 表示未捕获（功能关闭或来源目录不存在） */
+  /** 恢复前捕获的回档点，null 表示未捕获 */
   rollback: { id: string; mode: RollbackMode } | null
   registry: 'ok' | 'missing' | 'failed'
 }
