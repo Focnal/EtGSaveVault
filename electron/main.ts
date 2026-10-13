@@ -16,6 +16,9 @@ import * as rollback from './rollback'
 import { addWorkspace, getConfig, getWorkspace, removeWorkspace, updateGame } from './store'
 import * as sys from './sys'
 
+// 应用图标：打包时随 files 一起进 app.asar，开发时指向仓库中的 assets/
+const ICON_PATH = path.join(__dirname, '../assets/icon.ico')
+
 function createWindow(): void {
   const win = new BrowserWindow({
     width: 1280,
@@ -23,6 +26,7 @@ function createWindow(): void {
     minWidth: 980,
     minHeight: 620,
     title: 'EtG Save Vault',
+    icon: ICON_PATH,
     backgroundColor: '#101318',
     autoHideMenuBar: true,
     webPreferences: {
