@@ -15,41 +15,41 @@ Enter the Gungeon 存档备份管理工具，基于 Electron + Vue 3 + TypeScrip
 ## 开发
 
 ```bash
-npm install        # 安装依赖（Electron 二进制来自 GitHub，国内可能很慢）
-npm run install:cn # 同上，但走淘宝 npmmirror 镜像
-npm run dev        # Vite 开发服务器 + Electron 热重启
+npm install        # 安装依赖（不下载 Electron 二进制）
+npm run dev        # Vite 开发服务器 + Electron 热重启（首次运行会按需下载 Electron 二进制）
 ```
+
+> Electron 42 起 npm 包不再自带 `postinstall`，二进制改为首次调用 `electron` 时按需下载（约 151MB，缓存到 `%LOCALAPPDATA%\electron\Cache`，装好一次后不再重复下载）。因此 `npm install` 不会访问 GitHub，项目也不需要自己补 `postinstall` 钩子；`npm run dev` / `npm start` 在缺少 `node_modules/electron/dist` 时会自动补齐。
+> 下载默认走淘宝 npmmirror 镜像（配置见下方「国内镜像构建」），无需额外参数。
 
 ## 构建与运行
 
 ```bash
 npm run build      # 类型检查 + 渲染层打包 + 主进程打包（不联网）
 npm start          # 以生产模式启动
-npm run make       # build + electron-builder 打包便携版 → dist-executable/
-npm run make:cn    # 同上，但走淘宝 npmmirror 镜像
+npm run make       # build + electron-builder 打包便携版 → dist-executable/（镜像见下）
 ```
 
 ## 国内镜像构建
 
-`npm install` 与 `npm run make` 都会从 GitHub Releases 下载 Electron 相关文件（Electron 二进制约 110MB，以及 winCodeSign、NSIS、7zip 等打包工具），国内网络下经常长时间卡住。
+`npm run dev`（首次运行，下载 Electron 二进制约 151MB）与 `npm run make`（下载 Electron 压缩包，以及 winCodeSign、NSIS、7zip 等打包工具）都会从 GitHub Releases 下载大文件，国内网络下经常长时间卡住，因此镜像直接写在 `package.json` 的 `config` 字段里，普通命令自动生效，不需要 `make:cn` 之类的变体：
 
-`install:cn` / `make:cn` 会自动带上下面两个环境变量，再执行与 `install` / `make` 完全相同的命令：
+| `config` 键 | 值 | 作用 |
+| --- | --- | --- |
+| `electron_mirror` | `https://npmmirror.com/mirrors/electron/` | Electron 二进制（`npm run dev` 首次下载、`npm run make` 下载的 Electron 压缩包） |
+| `electron_builder_binaries_mirror` | `https://npmmirror.com/mirrors/electron-builder-binaries/` | electron-builder 的打包工具（winCodeSign、NSIS、7zip） |
 
-| 环境变量 | 值 |
-| --- | --- |
-| `ELECTRON_MIRROR` | `https://npmmirror.com/mirrors/electron/` |
-| `ELECTRON_BUILDER_BINARIES_MIRROR` | `https://npmmirror.com/mirrors/electron-builder-binaries/` |
+npm 会把 `config` 里的键导出成 `npm_package_config_*` 环境变量，`@electron/get` 与 electron-builder 都识别这种形式；**它的优先级高于 `ELECTRON_MIRROR` / `ELECTRON_BUILDER_BINARIES_MIRROR` 环境变量**。
+
+若你可以正常访问electron官方源，则可删除`package.json`中的`config`字段来直接使用官方源
 
 下载内容会缓存到 `%LOCALAPPDATA%\electron\Cache` 与 `%LOCALAPPDATA%\electron-builder\Cache`，之后的构建不会重复下载。
 
-其他命令也想走镜像时，可以直接用包装脚本 `scripts/mirror.mjs`（注入上面两个变量；`--timeout=<秒>` 用于防止下载卡死一直挂着）：
+`config` 只在经过 npm 脚本运行时才会被导出。以下两种情况需要显式指定镜像（`--timeout=<秒>` 可防止下载卡死一直挂着，超时以退出码 124 结束）：
 
-```bash
-node scripts/mirror.mjs -- npm install
-node scripts/mirror.mjs --timeout=600 -- npx electron-builder --win
-```
+也可以直接设环境变量 `ELECTRON_MIRROR` / `ELECTRON_BUILDER_BINARIES_MIRROR`（不经 npm 脚本时它们就会生效）。
 
-内置的 `install:cn` / `make:cn` 已经带上了 `--timeout=1800`（30 分钟）：超时会终止命令并以退出码 124 结束。
+若还想让 npm 依赖包本身也走镜像，在 `.npmrc` 里写 `registry=https://registry.npmmirror.com/`（npm 官方支持的键，不会产生弃用警告）。本项目未内置该文件，以免影响其他网络环境的贡献者。
 
 ## 目录结构
 

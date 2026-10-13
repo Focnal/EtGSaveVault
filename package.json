@@ -1,7 +1,10 @@
 {
   "name": "etg-save-vault",
   "productName": "EtG Save Vault",
-  "author": {"name": "focnal", "email": "focnal@foxmail.com"},
+  "author": {
+    "name": "focnal",
+    "email": "focnal@foxmail.com"
+  },
   "version": "0.1.0",
   "private": true,
   "description": "Enter the Gungeon 存档备份管理工具",
@@ -11,9 +14,7 @@
     "typecheck": "vue-tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
     "build": "npm run typecheck && vite build && node scripts/build-electron.mjs",
     "start": "electron .",
-    "make": "npm run build && electron-builder",
-    "make:cn": "node scripts/mirror.mjs --timeout=1800 -- npm run make",
-    "install:cn": "node scripts/mirror.mjs --timeout=1800 -- npm install"
+    "make": "npm run build && electron-builder"
   },
   "build": {
     "appId": "com.focnal.etgsavevault",
@@ -35,6 +36,10 @@
       ]
     }
   },
+  "config": {
+    "electron_mirror": "https://npmmirror.com/mirrors/electron/",
+    "electron_builder_binaries_mirror": "https://npmmirror.com/mirrors/electron-builder-binaries/"
+  },
   "dependencies": {
     "lucide-vue-next": "^0.469.0",
     "vue": "^3.5.13"
@@ -42,11 +47,16 @@
   "devDependencies": {
     "@types/node": "^22.10.2",
     "@vitejs/plugin-vue": "^5.2.1",
-    "electron": "^33.2.1",
+    "electron": "^44.7.0",
     "electron-builder": "^26.15.3",
     "esbuild": "^0.24.2",
     "typescript": "~5.7.2",
     "vite": "^6.0.7",
     "vue-tsc": "^2.2.0"
+  },
+  "allowScripts": {
+    "electron-winstaller@5.4.0": true,
+    "esbuild@0.24.2": true,
+    "esbuild@0.25.12": true
   }
 }
