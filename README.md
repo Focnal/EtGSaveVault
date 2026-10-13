@@ -15,16 +15,41 @@ Enter the Gungeon 存档备份管理工具，基于 Electron + Vue 3 + TypeScrip
 ## 开发
 
 ```bash
-npm install        # 如 Electron 下载缓慢：$env:ELECTRON_MIRROR="https://npmmirror.com/mirrors/electron/"
+npm install        # 安装依赖（Electron 二进制来自 GitHub，国内可能很慢）
+npm run install:cn # 同上，但走淘宝 npmmirror 镜像
 npm run dev        # Vite 开发服务器 + Electron 热重启
 ```
 
 ## 构建与运行
 
 ```bash
-npm run build      # 类型检查 + 渲染层打包 + 主进程打包
+npm run build      # 类型检查 + 渲染层打包 + 主进程打包（不联网）
 npm start          # 以生产模式启动
+npm run make       # build + electron-builder 打包便携版 → dist-executable/
+npm run make:cn    # 同上，但走淘宝 npmmirror 镜像
 ```
+
+## 国内镜像构建
+
+`npm install` 与 `npm run make` 都会从 GitHub Releases 下载 Electron 相关文件（Electron 二进制约 110MB，以及 winCodeSign、NSIS、7zip 等打包工具），国内网络下经常长时间卡住。
+
+`install:cn` / `make:cn` 会自动带上下面两个环境变量，再执行与 `install` / `make` 完全相同的命令：
+
+| 环境变量 | 值 |
+| --- | --- |
+| `ELECTRON_MIRROR` | `https://npmmirror.com/mirrors/electron/` |
+| `ELECTRON_BUILDER_BINARIES_MIRROR` | `https://npmmirror.com/mirrors/electron-builder-binaries/` |
+
+下载内容会缓存到 `%LOCALAPPDATA%\electron\Cache` 与 `%LOCALAPPDATA%\electron-builder\Cache`，之后的构建不会重复下载。
+
+其他命令也想走镜像时，可以直接用包装脚本 `scripts/mirror.mjs`（注入上面两个变量；`--timeout=<秒>` 用于防止下载卡死一直挂着）：
+
+```bash
+node scripts/mirror.mjs -- npm install
+node scripts/mirror.mjs --timeout=600 -- npx electron-builder --win
+```
+
+内置的 `install:cn` / `make:cn` 已经带上了 `--timeout=1800`（30 分钟）：超时会终止命令并以退出码 124 结束。
 
 ## 目录结构
 
@@ -32,7 +57,7 @@ npm start          # 以生产模式启动
 electron/    主进程与 preload（备份逻辑、回档点、注册表、进程检测、IPC）
 shared/      主进程与渲染层共享的 TypeScript 类型
 src/         Vue 3 渲染层（组件、全局 store、样式）
-scripts/     开发 / 构建脚本（esbuild + vite）
+scripts/     开发 / 构建脚本（esbuild + vite + 镜像包装）
 ```
 
 ## 回档点
