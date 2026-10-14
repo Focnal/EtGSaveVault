@@ -67,7 +67,7 @@ function toggle(id: string): void {
           <span v-else class="row-count">{{ backupsOf(ws.id).length }}</span>
         </div>
 
-        <template v-if="state.expanded[ws.id]">
+        <div v-if="state.expanded[ws.id]" class="bk-list">
           <div
             v-for="b in backupsOf(ws.id)"
             :key="b.name"
@@ -84,7 +84,7 @@ function toggle(id: string): void {
           </div>
           <div v-if="!missingOf(ws.id) && backupsOf(ws.id).length === 0" class="tree-hint">暂无备份</div>
           <div v-if="missingOf(ws.id)" class="tree-hint warn-text">目录不存在</div>
-        </template>
+        </div>
       </div>
     </div>
   </aside>

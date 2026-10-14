@@ -394,12 +394,19 @@ code {
   flex: none;
 }
 
+/* 工作区下的存档列表：缩进一级并绘制树形引导线 */
+.bk-list {
+  margin-left: 18px;
+  padding-left: 5px;
+  border-left: 1px solid var(--border-soft);
+}
+
 .bk-row {
-  padding-left: 27px;
+  padding-left: 14px;
 }
 
 .tree-hint {
-  padding: 2px 0 8px 33px;
+  padding: 2px 0 8px 14px;
   color: var(--text-3);
   font-size: 12px;
 }
