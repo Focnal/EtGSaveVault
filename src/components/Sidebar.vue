@@ -11,6 +11,7 @@ import {
   RefreshCw
 } from 'lucide-vue-next'
 import { computed } from 'vue'
+import type { BackupSummary, Workspace } from '../../shared/types'
 import { formatTime } from '../format'
 import { openBackupMenu, openWorkspaceMenu } from '../menus'
 import { addWorkspace, scanAll, scanWorkspace, selectBackup, selectWorkspace, state } from '../store'
@@ -22,6 +23,18 @@ const missingOf = (id: string) => state.scans[id]?.missing ?? false
 function toggle(id: string): void {
   state.expanded[id] = !state.expanded[id]
   if (state.expanded[id] && !state.scans[id]) void scanWorkspace(id)
+}
+
+/** 右键先选中，菜单项与右侧详情才对应用户点到的那一项 */
+function onWorkspaceContext(e: MouseEvent, ws: Workspace): void {
+  selectWorkspace(ws.id)
+  openWorkspaceMenu(e, ws)
+}
+
+function onBackupContext(e: MouseEvent, ws: Workspace, b: BackupSummary): void {
+  // 详情是异步加载的，不阻塞菜单弹出
+  void selectBackup(ws.id, b.name)
+  openBackupMenu(e, ws.id, b)
 }
 </script>
 
@@ -55,7 +68,7 @@ function toggle(id: string): void {
           class="tree-row ws-row"
           :class="{ selected: state.selectedWorkspaceId === ws.id && !state.selectedBackupName }"
           @click="selectWorkspace(ws.id)"
-          @contextmenu.prevent="openWorkspaceMenu($event, ws)"
+          @contextmenu.prevent="onWorkspaceContext($event, ws)"
         >
           <button class="chevron" :class="{ open: state.expanded[ws.id] }" title="展开/收起" @click.stop="toggle(ws.id)">
             <ChevronRight :size="13" />
@@ -74,7 +87,7 @@ function toggle(id: string): void {
             class="tree-row bk-row"
             :class="{ selected: state.selectedWorkspaceId === ws.id && state.selectedBackupName === b.name }"
             @click="selectBackup(ws.id, b.name)"
-            @contextmenu.prevent="openBackupMenu($event, ws.id, b)"
+            @contextmenu.prevent="onBackupContext($event, ws, b)"
           >
             <Camera v-if="b.isSnapshot" :size="13" class="row-icon dim-icon" />
             <Archive v-else :size="13" class="row-icon" />
