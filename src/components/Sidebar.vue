@@ -25,9 +25,16 @@ function toggle(id: string): void {
   if (state.expanded[id] && !state.scans[id]) void scanWorkspace(id)
 }
 
+/** 左键点击：选中并切换展开状态，已展开的再点即折叠 */
+function onWorkspaceClick(ws: Workspace): void {
+  selectWorkspace(ws.id, false)
+  toggle(ws.id)
+}
+
 /** 右键先选中，菜单项与右侧详情才对应用户点到的那一项 */
 function onWorkspaceContext(e: MouseEvent, ws: Workspace): void {
-  selectWorkspace(ws.id)
+  // 折叠状态保持不变：右键只移动高亮
+  selectWorkspace(ws.id, false)
   openWorkspaceMenu(e, ws)
 }
 
@@ -67,7 +74,7 @@ function onBackupContext(e: MouseEvent, ws: Workspace, b: BackupSummary): void {
         <div
           class="tree-row ws-row"
           :class="{ selected: state.selectedWorkspaceId === ws.id && !state.selectedBackupName }"
-          @click="selectWorkspace(ws.id)"
+          @click="onWorkspaceClick(ws)"
           @contextmenu.prevent="onWorkspaceContext($event, ws)"
         >
           <button class="chevron" :class="{ open: state.expanded[ws.id] }" title="展开/收起" @click.stop="toggle(ws.id)">

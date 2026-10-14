@@ -151,11 +151,12 @@ export async function scanWorkspace(id: string): Promise<void> {
   }
 }
 
-export function selectWorkspace(id: string): void {
+/** expand=false 时只移动高亮，不改变展开状态（侧栏右键用） */
+export function selectWorkspace(id: string, expand = true): void {
   state.selectedWorkspaceId = id
   state.selectedBackupName = null
   state.detail = null
-  state.expanded[id] = true
+  if (expand) state.expanded[id] = true
 }
 
 export async function selectBackup(workspaceId: string, name: string): Promise<void> {
